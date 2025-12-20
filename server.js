@@ -97,6 +97,11 @@ app.post("/api/phylogeneticTree", upload.single("msa"), (req, res) => {
     }
   });
 });
+
+app.get('/health-check', (req, res) => {
+  res.status(200).send('OK');
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
 
