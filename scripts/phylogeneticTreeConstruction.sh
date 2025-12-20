@@ -42,9 +42,11 @@ fi
 
 echo "[TREE] Newick created at $TREE"
 
+PYTHON="$PROJECT_ROOT/venv/bin/python"
+
 # Render tree image
-if [ -f "venv/bin/python" ]; then
-  ./venv/bin/python scripts/render_tree.py "$TREE" "$IMG"
+if [ -f "$PYTHON" ]; then
+  "$PYTHON" "$PROJECT_ROOT/scripts/render_tree.py" "$TREE" "$IMG"
   echo "[TREE] Image created at $IMG"
 else
   echo "[TREE] Python venv missing, cannot render image"

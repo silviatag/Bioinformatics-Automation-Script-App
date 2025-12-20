@@ -89,7 +89,6 @@ app.post("/api/phylogeneticTree", upload.single("msa"), (req, res) => {
         jobId,
         rawOutput: stdout // Keeping this for your debugging
       });
-      console.log("response:", res);
     } else {
       res.status(500).json({ 
         error: "Files were not generated.",
@@ -98,5 +97,7 @@ app.post("/api/phylogeneticTree", upload.single("msa"), (req, res) => {
     }
   });
 });
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
 
-app.listen(3000, () => console.log("Backend running on port 3000"));
+// app.listen(3000, () => console.log("Backend running on port 3000"));

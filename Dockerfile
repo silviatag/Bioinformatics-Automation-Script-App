@@ -2,11 +2,11 @@
 FROM node:20-bullseye
 
 # Set working directory
-WORKDIR /Bioinformatics-Automation-Script
+WORKDIR /app
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Copy system requirements
-COPY backend/requirements.txt .
+COPY requirements.txt .
 
 # Install system packages + dependencies for Python, ETE3, and Qt rendering
 RUN apt-get update && \
@@ -30,7 +30,7 @@ RUN wget -O /usr/local/bin/FastTree http://www.microbesonline.org/fasttree/FastT
     chmod +x /usr/local/bin/FastTree
 
 # Copy backend code
-COPY backend/ .
+COPY . .
 
 # Make scripts executable
 RUN chmod +x scripts/*.sh
@@ -41,13 +41,13 @@ RUN python3 -m venv venv && \
     ./venv/bin/pip install ete3==3.1.2 PyQt5 six numpy
 
 # Install Node.js dependencies if package.json exists
-RUN npm install || echo "No package.json found, skipping npm install"
+RUN npm install 
 
 # Create outputs folder
-RUN mkdir -p outputs
+RUN mkdir -p outputs uploads
 
 # Expose backend port
-EXPOSE 3001
+EXPOSE 3000
 
 # Run server
 CMD ["node", "server.js"]
