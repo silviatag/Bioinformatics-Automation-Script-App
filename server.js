@@ -1,4 +1,4 @@
-import express, { response } from "express";
+import express from "express";
 import multer from "multer";
 import { exec } from "child_process";
 import path from "path";
@@ -7,7 +7,15 @@ import { v4 as uuidv4 } from "uuid";
 import cors from "cors";
 
 const app = express();
-app.use(cors());
+
+// --- CORS Setup ---
+const FRONTEND_URL = "https://seqflow-kappa.vercel.app";
+
+app.use(cors({
+  origin: FRONTEND_URL,      // allow requests from your frontend
+  methods: ['GET','POST'],
+  credentials: true
+}));
 
 // Define absolute paths
 const __dirname = path.resolve();
@@ -18,11 +26,10 @@ const outputDir = path.join(__dirname, "outputs");
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
 
-// 2. CLEANUP LOGIC (Add this here)
+// --- Cleanup logic ---
 const cleanOldFiles = () => {
     const twentyFourHoursAgo = Date.now() - 24 * 60 * 60 * 1000;
 
-    // Helper to clean a specific directory
     const cleanDir = (dirPath) => {
         fs.readdir(dirPath, (err, items) => {
             if (err) return;
@@ -40,20 +47,29 @@ const cleanOldFiles = () => {
         });
     };
 
-    cleanDir(outputDir); // Clean processed jobs
-    cleanDir(uploadDir); // Clean raw uploaded MSA files
+    cleanDir(outputDir);
+    cleanDir(uploadDir);
 };
 
 // Run cleanup every hour
 setInterval(cleanOldFiles, 60 * 60 * 1000);
 
-// Serve outputs folder: http://localhost:3000/outputs/...
-app.use("/outputs", express.static(outputDir));
+// --- Serve outputs folder with download headers ---
+app.use("/outputs", express.static(outputDir, {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith(".newick")) {
+      res.setHeader("Content-Disposition", 'attachment; filename="tree.newick"');
+      res.setHeader("Content-Type", "text/plain");
+    }
+    if (filePath.endsWith(".png")) {
+      res.setHeader("Content-Type", "image/png");
+    }
+  }
+}));
 
 const upload = multer({ dest: uploadDir });
 
-// ... (keep your imports and setup as they were)
-
+// --- Phylogenetic Tree API ---
 app.post("/api/phylogeneticTree", upload.single("msa"), (req, res) => {
   const jobId = uuidv4();
   const file = req.file.path;
@@ -68,41 +84,37 @@ app.post("/api/phylogeneticTree", upload.single("msa"), (req, res) => {
       return res.status(500).json({ error: "Tree construction failed." });
     }
 
-    // --- THE KEY FIX IS HERE ---
-    // We do NOT use the path the script gives us. 
-    // We build the URL based on the jobId because Express is serving the 'outputs' folder.
-    
-    const host = req.get("host"); // This gets "localhost:3000"
-    const protocol = req.protocol; // This gets "http"
-    
+    const host = req.get("host");
+    const protocol = req.protocol;
+
     const publicTreeUrl = `${protocol}://${host}/outputs/${jobId}/tree.newick`;
     const publicImageUrl = `${protocol}://${host}/outputs/${jobId}/tree.png`;
 
     console.log("generated url: ", publicTreeUrl);
-    // Verify the file exists on the server's disk before telling the frontend it's ready
-    const localTreePath = path.join(process.cwd(), "outputs", jobId, "tree.newick");
+
+    const localTreePath = path.join(outputDir, jobId, "tree.newick");
 
     if (fs.existsSync(localTreePath)) {
       res.json({
-        tree: publicTreeUrl,  // Sending the URL, not the local path!
+        tree: publicTreeUrl,
         image: publicImageUrl,
         jobId,
-        rawOutput: stdout // Keeping this for your debugging
+        rawOutput: stdout
       });
     } else {
       res.status(500).json({ 
         error: "Files were not generated.",
-        debugPath: localTreePath 
+        debugPath: localTreePath
       });
     }
   });
 });
 
+// --- Health Check ---
 app.get('/health-check', (req, res) => {
   res.status(200).send('OK');
 });
 
+// --- Start Server ---
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
-
-// app.listen(3000, () => console.log("Backend running on port 3000"));
