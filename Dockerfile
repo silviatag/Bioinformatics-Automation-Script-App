@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y \
     wget \
     perl \
     unzip \
-    libssl3 \
+    libssl1.1 \
     libqt5svg5-dev \
     python3-pyqt5 \
     libglib2.0-0 \
