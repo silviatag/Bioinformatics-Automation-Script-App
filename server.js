@@ -57,7 +57,7 @@ setInterval(cleanOldFiles, 60 * 60 * 1000);
 // --- Serve outputs folder with download headers ---
 app.use("/outputs", express.static(outputDir, {
   setHeaders: (res, filePath) => {
-    if (filePath.endsWith(".newick")) {
+    if (filePath.endsWith(".newick") || filePath.endsWith(".nwk")) {
       res.setHeader("Content-Disposition", 'attachment; filename="tree.newick"');
       res.setHeader("Content-Type", "text/plain");
     }
