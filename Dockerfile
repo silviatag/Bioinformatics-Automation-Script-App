@@ -1,53 +1,81 @@
-# Use official Node 20 image
+# -----------------------------
+# Base image
+# -----------------------------
 FROM node:20-bullseye
 
-# Set working directory
-WORKDIR /app
 ENV DEBIAN_FRONTEND=noninteractive
+WORKDIR /app
 
-# Copy system requirements
-COPY requirements.txt .
-
-# Install system packages + dependencies for Python, ETE3, and Qt rendering
-RUN apt-get update && \
-    xargs -a requirements.txt apt-get install -y \
-        python3 \
-        python3-venv \
-        python3-dev \
-        wget \
-        curl \
-        libqt5svg5-dev \
-        python3-pyqt5 \
-        libglib2.0-0 \
-        libsm6 \
-        libxrender1 \
-        libxext6 \
+# -----------------------------
+# System dependencies
+# -----------------------------
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-venv \
+    python3-dev \
+    curl \
+    jq \
+    wget \
+    perl \
+    unzip \
+    libssl3 \
+    libqt5svg5-dev \
+    python3-pyqt5 \
+    libglib2.0-0 \
+    libsm6 \
+    libxrender1 \
+    libxext6 \
     && rm -rf /var/lib/apt/lists/*
 
+# -----------------------------
+# Copy backend code
+# -----------------------------
+COPY . .
 
+# -----------------------------
+# Install edirect (NCBI)
+# -----------------------------
+RUN wget https://ftp.ncbi.nlm.nih.gov/entrez/entrezdirect/edirect.tar.gz && \
+    tar -xzf edirect.tar.gz && \
+    rm edirect.tar.gz
+
+# Make edirect tools available
+ENV PATH="/app/edirect:${PATH}"
+
+# -----------------------------
 # Install FastTree
+# -----------------------------
 RUN wget -O /usr/local/bin/FastTree http://www.microbesonline.org/fasttree/FastTree && \
     chmod +x /usr/local/bin/FastTree
 
-# Copy backend code
-COPY . .
-
+# -----------------------------
 # Make scripts executable
-RUN chmod +x scripts/*.sh
+# -----------------------------
+RUN chmod +x scripts/*.sh || true
 
-# Create Python virtual environment & install Python packages
+# -----------------------------
+# Python virtual environment
+# -----------------------------
 RUN python3 -m venv venv && \
     ./venv/bin/pip install --upgrade pip && \
     ./venv/bin/pip install ete3==3.1.2 PyQt5 six numpy
 
-# Install Node.js dependencies if package.json exists
-RUN npm install 
+# -----------------------------
+# Node dependencies
+# -----------------------------
+RUN npm install
 
-# Create outputs folder
+# -----------------------------
+# Create required folders
+# -----------------------------
 RUN mkdir -p outputs uploads
 
+# -----------------------------
 # Expose backend port
+# -----------------------------
 EXPOSE 3000
 
+# -----------------------------
 # Run server
+# -----------------------------
 CMD ["node", "server.js"]

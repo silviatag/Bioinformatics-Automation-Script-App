@@ -64,6 +64,10 @@ app.use("/outputs", express.static(outputDir, {
     if (filePath.endsWith(".png")) {
       res.setHeader("Content-Type", "image/png");
     }
+    if (filePath.endsWith(".fasta") || filePath.endsWith(".fa")) {
+      res.setHeader("Content-Disposition", `attachment; filename="${path.basename(filePath)}"`);
+      res.setHeader("Content-Type", "application/octet-stream");
+    }
   }
 }));
 
@@ -109,6 +113,64 @@ app.post("/api/phylogeneticTree", upload.single("msa"), (req, res) => {
     }
   });
 });
+
+// --- Database Retrieval API ---
+app.post("/api/dbRetrieval", express.json(), (req, res) => {
+  const { choice, keyword } = req.body;
+
+  if (!choice || !keyword) {
+    return res.status(400).json({
+      error: "Missing parameters. Required: choice and keyword"
+    });
+  }
+
+  const jobId = uuidv4();
+
+  const scriptPath = path.join(
+    process.cwd(),
+    "scripts",
+    "dbRetrieval.sh"
+  );
+
+  const cmd = `bash "${scriptPath}" "${choice}" "${keyword}" "${jobId}"`;
+
+  exec(cmd, (err, stdout, stderr) => {
+    if (err) {
+      console.error("DB Script Error:", stderr);
+      return res.status(500).json({
+        error: "Database retrieval failed"
+      });
+    }
+
+    const host = req.get("host");
+    const protocol = req.protocol;
+
+    const fastaFileName = `${keyword}.fasta`;
+    const publicFastaUrl = `${protocol}://${host}/outputs/${jobId}/${fastaFileName}`;
+
+    console.log("generated fasta file url: ", publicFastaUrl );
+    
+    const localFastaPath = path.join(
+      outputDir,
+      jobId,
+      fastaFileName
+    );
+
+    if (!fs.existsSync(localFastaPath)) {
+      return res.status(500).json({
+        error: "FASTA file was not generated",
+        debugPath: localFastaPath
+      });
+    }
+
+    res.json({
+      fasta: publicFastaUrl,
+      jobId,
+      rawOutput: stdout
+    });
+  });
+});
+
 
 // --- Health Check ---
 app.get('/health-check', (req, res) => {
