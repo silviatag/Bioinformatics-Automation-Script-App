@@ -34,11 +34,8 @@ echo "[TREE] Type: $DATA_TYPE"
 echo "[TREE] Job ID: $JOB_ID"
 
 # Run FastTree
-if [ "$DATA_TYPE" = "PROTEIN" ]; then
-  FastTree -protein "$MSA" > "$TREE"
-else
-  FastTree "$MSA" > "$TREE"
-fi
+
+FastTree "$MSA" > "$TREE"
 
 echo "[TREE] Newick created at $TREE"
 
