@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "Multiple Sequence Alignment Script"
+# echo "Multiple Sequence Alignment Script"
 
 # -----------------------------
 # MODE DETECTION
@@ -127,6 +127,9 @@ else
     exit 1
 fi
 
-echo "MSA completed"
-echo "Fetched sequences saved in: $OUTDIR"
-echo "Combined MSA saved at: $MSA_OUTPUT"
+# displaying the MSA output
+cat "$MSA_OUTPUT"
+
+# echo "MSA completed"
+# echo "Fetched sequences saved in: $OUTDIR"
+# echo "Combined MSA saved at: $MSA_OUTPUT"
