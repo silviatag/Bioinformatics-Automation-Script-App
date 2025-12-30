@@ -171,6 +171,52 @@ app.post("/api/dbRetrieval", express.json(), (req, res) => {
   });
 });
 
+// --- Multiple Sequence Alignment (MSA) API ---
+app.post("/api/msa", express.json(), (req, res) => {
+  const jobId = uuidv4();
+  const outputJobDir = path.join(outputDir, jobId);
+  if (!fs.existsSync(outputJobDir)) fs.mkdirSync(outputJobDir, { recursive: true });
+
+  const dbType = req.body.dbType?.toUpperCase();   // "DNA" or "PROTEIN"
+  const tool = req.body.tool?.toLowerCase();      // "clustal" or "mafft"
+  const accessionString = req.body.accessions;    // space-separated string from textbox
+
+  if (!dbType || !tool || !accessionString) {
+    return res.status(400).json({ error: "Missing parameters: dbType, tool, or accessions" });
+  }
+
+  const msaScriptPath = path.join(process.cwd(), "scripts", "MSA.sh");
+
+  // Build the bash command, space-separated string is passed as-is
+  const cmd = `bash "${msaScriptPath}" ${dbType} ${tool} ${jobId} ${accessionString}`;
+
+  exec(cmd, (err, stdout, stderr) => {
+    if (err) {
+      console.error("MSA Script Error:", stderr);
+      return res.status(500).json({ error: "MSA failed", debug: stderr });
+    }
+
+    const host = req.get("host");
+    const protocol = req.protocol;
+
+    const publicMSAUrl = `${protocol}://${host}/outputs/${jobId}/msa_result.fasta`;
+    const publicCombinedUrl = `${protocol}://${host}/outputs/${jobId}/combined_input_${jobId}.fasta`;
+
+    // List fetched sequences
+    const fetchedFiles = fs.readdirSync(outputJobDir)
+      .filter(f => f.endsWith(".fasta") && !f.includes("combined") && f !== "msa_result.fasta")
+      .map(f => `${protocol}://${host}/outputs/${jobId}/${f}`);
+
+    res.json({
+      jobId,
+      msaResult: publicMSAUrl,
+      combinedInput: publicCombinedUrl,
+      fetchedSequences: fetchedFiles,
+      rawOutput: stdout
+    });
+  });
+});
+
 
 // --- Health Check ---
 app.get('/health-check', (req, res) => {
