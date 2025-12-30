@@ -15,6 +15,8 @@ RUN apt-get update && apt-get install -y \
     python3-dev \
     curl \
     jq \
+    clustalo \
+    mafft \
     wget \
     perl \
     unzip \
