@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y \
     jq \
     clustalo \
     mafft \
+    ncbi-blast+ \
     wget \
     perl \
     unzip \
