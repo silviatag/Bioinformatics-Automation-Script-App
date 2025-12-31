@@ -217,6 +217,75 @@ app.post("/api/msa", express.json(), (req, res) => {
   });
 });
 
+// --- Pairwise Sequence Alignment API ---
+app.post(
+  "/api/sequenceAlignment",
+  upload.fields([
+    { name: "seq1", maxCount: 1 },
+    { name: "seq2", maxCount: 1 }
+  ]),
+  (req, res) => {
+    const jobId = uuidv4();
+
+    // Validate uploads
+    if (!req.files?.seq1 || !req.files?.seq2) {
+      return res.status(400).json({
+        error: "Two FASTA files are required: seq1 and seq2"
+      });
+    }
+
+    const seq1Path = req.files.seq1[0].path;
+    const seq2Path = req.files.seq2[0].path;
+
+    const scriptPath = path.join(
+      process.cwd(),
+      "scripts",
+      "sequenceAlignment.sh"
+    );
+
+    const cmd = `bash "${scriptPath}" "${seq1Path}" "${seq2Path}" "${jobId}"`;
+
+    exec(cmd, (err, stdout, stderr) => {
+      if (err) {
+        console.error("Alignment Script Error:", stderr);
+        return res.status(500).json({
+          error: "Sequence alignment failed",
+          debug: stderr
+        });
+      }
+
+      const host = req.get("host");
+      const protocol = req.protocol;
+
+      const humanReadableUrl =
+        `${protocol}://${host}/outputs/${jobId}/blast_alignment.txt`;
+
+      const tableUrl =
+        `${protocol}://${host}/outputs/${jobId}/blast_table.txt`;
+
+      const localHumanPath = path.join(
+        outputDir,
+        jobId,
+        "blast_alignment.txt"
+      );
+
+      if (!fs.existsSync(localHumanPath)) {
+        return res.status(500).json({
+          error: "Alignment output not generated",
+          debugPath: localHumanPath
+        });
+      }
+
+      res.json({
+        jobId,
+        alignmentFile: humanReadableUrl,
+        alignmentTable: tableUrl,
+        rawOutput: stdout // <- human-readable BLAST output
+      });
+    });
+  }
+);
+
 
 // --- Health Check ---
 app.get('/health-check', (req, res) => {
