@@ -18,6 +18,7 @@ RUN apt-get update && apt-get install -y \
     clustalo \
     mafft \
     ncbi-blast+ \
+    emboss \
     wget \
     perl \
     unzip \
