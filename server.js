@@ -237,13 +237,22 @@ app.post(
     const seq1Path = req.files.seq1[0].path;
     const seq2Path = req.files.seq2[0].path;
 
+    // Tool selection from request body
+    const tool = req.body.tool;
+    if (!tool || !["blast", "needle"].includes(tool.toLowerCase())) {
+      return res.status(400).json({
+        error: "Please specify a valid tool in request body: 'blast' or 'needle'"
+      });
+    }
+
     const scriptPath = path.join(
       process.cwd(),
       "scripts",
       "sequenceAlignment.sh"
     );
 
-    const cmd = `bash "${scriptPath}" "${seq1Path}" "${seq2Path}" "${jobId}"`;
+    // Pass tool as first argument in your script order
+    const cmd = `bash "${scriptPath}" "${tool}" "${seq1Path}" "${seq2Path}" "${jobId}"`;
 
     exec(cmd, (err, stdout, stderr) => {
       if (err) {
@@ -257,16 +266,26 @@ app.post(
       const host = req.get("host");
       const protocol = req.protocol;
 
-      const humanReadableUrl =
-        `${protocol}://${host}/outputs/${jobId}/blast_alignment.txt`;
+      // Determine output filenames based on tool
+      let humanFile, tableFile;
+      if (tool.toLowerCase() === "blast") {
+        humanFile = "blast_alignment.txt";
+        tableFile = "blast_table.txt";
+      } else {
+        humanFile = "needle_alignment.txt";
+        tableFile = null; // Needle doesn't have table output
+      }
 
-      const tableUrl =
-        `${protocol}://${host}/outputs/${jobId}/blast_table.txt`;
+      const humanReadableUrl = `${protocol}://${host}/outputs/${jobId}/${humanFile}`;
+      const tableUrl = tableFile
+        ? `${protocol}://${host}/outputs/${jobId}/${tableFile}`
+        : null;
 
       const localHumanPath = path.join(
-        outputDir,
+        process.cwd(),
+        "outputs",
         jobId,
-        "blast_alignment.txt"
+        humanFile
       );
 
       if (!fs.existsSync(localHumanPath)) {
@@ -279,12 +298,13 @@ app.post(
       res.json({
         jobId,
         alignmentFile: humanReadableUrl,
-        alignmentTable: tableUrl,
-        rawOutput: stdout // <- human-readable BLAST output
+        alignmentTable: tableUrl, // null for Needle
+        rawOutput: stdout // human-readable alignment from script
       });
     });
   }
 );
+
 
 
 // --- Health Check ---
